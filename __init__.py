@@ -1,9 +1,10 @@
-from flask import Flask, render_template_string, render_template, jsonify, request, redirect, url_for, session
+from flask import Flask, render_template_string, render_template, jsonify, request, redirect, url_for, session, Response
 from flask import render_template
 from flask import json
 from urllib.request import urlopen
 from werkzeug.utils import secure_filename
 import sqlite3
+from functools import wraps
 
 app = Flask(__name__)                                                                                                                  
 app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'  # Clé secrète pour les sessions
@@ -80,8 +81,23 @@ def get_db_connection():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     return conn
+def check_user_auth(username, password):
+    return username == "user" and password == "12345"
 
+def require_user_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_user_auth(auth.username, auth.password):
+            return Response(
+                'Accès refusé : identifiants utilisateur requis.\n',
+                401,
+                {'WWW-Authenticate': 'Basic realm="User Zone"'}
+            )
+        return f(*args, **kwargs)
+    return decorated
 @app.route('/fiche_nom/<nom>', methods=['GET'])
+@require_user_auth
 def fiche_nom(nom):
     conn = get_db_connection()
     client = conn.execute('SELECT * FROM clients WHERE nom = ?', (nom,)).fetchone()
@@ -90,6 +106,7 @@ def fiche_nom(nom):
     if client is None:
         return jsonify({'message': 'Client non trouvé'}), 404
 
-    return jsonify(dict(client))                                                                                                                                       
+    return jsonify(dict(client))
+                                                                                                                                      
 if __name__ == "__main__":
   app.run(debug=True)
