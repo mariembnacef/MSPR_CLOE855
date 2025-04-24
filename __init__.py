@@ -100,6 +100,7 @@ def require_user_auth(f):
 @app.route('/fiche_nom/<nom>', methods=['GET'])
 @require_user_auth
 def fiche_nom(nom):
+    print("REQUÊTE : ", request)
     conn = get_db_connection()
     client = conn.execute('SELECT * FROM clients WHERE nom = ?', (nom,)).fetchone()
     conn.close()
